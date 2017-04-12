@@ -2,19 +2,34 @@
 
 import twitter4j.*
 
-String username = "<twitter-user>"
+String username = "mikedave_switch"
 int numberOfTweetsToSearch = 25
-File directory = new File("downloads");
+File directory = new File("images");
+File autocropDirectory = new File("autocrop/input");
 
-//setup download directory
-if(!directory.exists()) {
-    println "Creating directory ${directory.absolutePath}"
-    directory.mkdirs()
+void makeDirectory(File dir) {
+  if(!dir.exists()) {
+    println "Creating directory ${dir.absolutePath}"
+    dir.mkdirs()
+  }
 }
 
+//setup download directory
+makeDirectory(directory)
+makeDirectory(autocropDirectory)
+makeDirectory(new File("autocrop/output"))
+
+def executeCrop = false
 //do the work
 filterTweets(readFromTwitter(username, numberOfTweetsToSearch)).each{tweet ->
-    downloadImage(tweet, directory)
+   File download = downloadImage(tweet, directory)
+   if (tweet.hashtags.contains("BreathoftheWild")) {
+    new File("autocrop/input/${download.name}") << download.asWritable()
+    executeCrop = true
+   }
+}
+if (executeCrop) {
+  evaluate(new File("autocrop/switch-crop.groovy"))
 }
 
 //twitter methods
@@ -29,6 +44,8 @@ List<SwitchTweet> filterTweets(List<Status> statuses) {
         SwitchTweet tweet = new SwitchTweet()
         tweet.tweetDate = status.createdAt
         tweet.imageUrl = status.mediaEntities?.first()?.mediaURL
+        tweet.text = status.text
+        tweet.hashtags = status.hashtagEntities.collect { it.text }
         if(tweet.imageUrl) {
             return tweet
         }
@@ -40,7 +57,7 @@ boolean fromNintendo(Status status) {
 }
 
 //download method
-void downloadImage(SwitchTweet tweet, File directory) {
+File downloadImage(SwitchTweet tweet, File directory) {
     String filename = tweet.tweetDate.format("yyyy-MM-dd_HH-mm-ss") + ".jpg"
     def file = new File(filename, directory)
     if(file.exists()){
@@ -48,13 +65,16 @@ void downloadImage(SwitchTweet tweet, File directory) {
     } else {
         println "Downloading to $filename"
         def fileOutputStream = file.newOutputStream()
-        fileOutputStream << new URL(tweet.imageUrl).openStream()
+        fileOutputStream << new URL("${tweet.imageUrl}:large").openStream()
         fileOutputStream.close()
     }
+    return file
 }
 
 //helper class
 class SwitchTweet {
     String imageUrl
     Date tweetDate
+    String text
+    List<String> hashtags
 }
