@@ -46,9 +46,11 @@ class ScreenshotsParser {
     usernames.each { username ->
       filterTweets(readFromTwitter(username, numberOfTweetsToSearch)).each{tweet ->
         File download = downloadImage(tweet)
-        if (autocrop.enabled && download && tweet.hashtags.contains(autocrop.hashtag)) {
-          println "copying ${download.name} into ${autocrop.inputDirectory} to be cropped"
-          new File(download.name, autocrop.inputDirectory) << download.bytes
+        if (autocrop.enabled && download) {
+          if (!autocrop.hashtag || tweet.hashtags.contains(autocrop.hashtag)) {
+            println "copying ${download.name} into ${autocrop.inputDirectory} to be cropped"
+            new File(download.name, autocrop.inputDirectory) << download.bytes
+          }
         }
       }
     }
